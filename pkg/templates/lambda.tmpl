@@ -1,0 +1,47 @@
+{{- $stack := .}}
+{{- $stackName := .Name}}
+{{- $serviceName := .ServiceName}}
+{{- $additionalTags := .AdditionalTags}}
+{{- range .LambdaFunctions}}
+resource "aws_lambda_function" "{{tfName .LogicalID}}" {
+  filename      = "lambda_function_payload.zip"
+  function_name = "{{.FunctionName}}"
+  role          = "{{.Role}}"
+  handler       = "{{.Handler}}"
+  runtime       = "{{.Runtime}}"
+  memory_size   = {{.MemorySize}}
+  timeout       = {{.Timeout}}
+
+  tags = {
+    Service          = "{{$serviceName}}"
+    {{- range $key, $value := $additionalTags}}
+    {{$key}}        = "{{$value}}"
+    {{- end}}
+  }
+
+{{- if .Environment.Variables}}
+  environment {
+    variables = { 
+      {{- range $key, $value := .Environment.Variables}} 
+      "{{$key}}" = "{{$value}}" 
+      {{- end}}
+    }
+  }
+}
+{{- end}}
+{{- end}}
+{{- range .LambdaEventSources}}
+
+resource "aws_lambda_event_source_mapping" "{{tfName .LogicalID}}" {
+  event_source_arn  = {{lookup $stack .EventSourceArn}}
+  function_name     = {{lookup $stack .FunctionArn}}
+}
+{{- end}}
+
+{{- range .LogGroups}}
+
+resource "aws_cloudwatch_log_group" "{{tfName .LogicalID}}" {
+  name = "{{.LogGroupName}}"
+  retention_in_days = {{.RetentionInDays}}
+}
+{{- end}}

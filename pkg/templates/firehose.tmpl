@@ -1,0 +1,31 @@
+{{- $stackName := .Name}}
+{{- $serviceName := .ServiceName}}
+{{- $additionalTags := .AdditionalTags}}
+{{- range .FirehoseDeliveryStreams}}
+resource "aws_kinesis_firehose_delivery_stream" "{{tfName .LogicalID}}" {
+  name        = "{{.DeliveryStreamName}}"
+  destination = "extended_s3"
+  {{- range .Destinations}}
+  {{- if .ExtendedS3DestinationDescription}}
+  {{- $dest := .ExtendedS3DestinationDescription}}
+  extended_s3_configuration {
+    role_arn   = "{{$dest.RoleARN}}"
+    bucket_arn = "{{$dest.BucketARN}}"
+    prefix     = "{{$dest.Prefix}}"
+    error_output_prefix = "{{$dest.ErrorOutputPrefix}}"
+    buffering_size      = {{$dest.BufferingHints.SizeInMBs}}
+    buffering_interval  = {{$dest.BufferingHints.IntervalInSeconds}}
+    compression_format  = "{{$dest.CompressionFormat}}"
+  }
+  {{- end}}
+  {{- end}}
+
+  tags = {
+    Service          = "{{$serviceName}}"
+    {{- range $key, $value := $additionalTags}}
+    {{$key}}        = "{{$value}}"
+    {{- end}}
+  }
+}
+
+{{- end}}

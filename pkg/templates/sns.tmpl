@@ -1,0 +1,24 @@
+{{- $stack := .}}
+{{- $stackName := .Name}}
+{{- $serviceName := .ServiceName}}
+{{- $additionalTags := .AdditionalTags}}
+{{- range .Topics}}
+resource "aws_sns_topic" "{{tfName .LogicalID}}" {
+  name = "{{.TopicName}}"
+  tags = {
+    Service          = "{{$serviceName}}"
+    {{- range $key, $value := $additionalTags}}
+    {{$key}}        = "{{$value}}"
+    {{- end}}
+  } 
+}
+
+{{- end}}
+{{- range .TopicSubscriptions}}
+
+resource "aws_sns_topic_subscription" "{{tfName .LogicalID}}" {
+  topic_arn = {{lookup $stack (index .Attributes "TopicArn")}}
+  protocol  = "{{index .Attributes "Protocol"}}"
+  endpoint  = {{lookup $stack (index .Attributes "Endpoint")}}
+}
+{{- end}}

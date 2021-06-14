@@ -1,0 +1,80 @@
+{{$serviceName := .ServiceName}}
+{{$additionalTags := .AdditionalTags}}
+{{- range .Roles}}
+{{$id := tfName .LogicalID}}
+resource "aws_iam_role" "{{tfName .LogicalID}}" {
+  name               = "{{.RoleName}}"
+  assume_role_policy = data.aws_iam_policy_document.{{tfName .LogicalID}}_assume_policy.json
+
+  tags = {
+    Service          = "{{$serviceName}}"
+    {{- range $key, $value := $additionalTags}}
+    {{$key}}        = "{{$value}}"
+    {{- end}}
+  }
+}
+
+{{- if .PolicyDocuments}}
+{{- range $key, $value := .PolicyDocuments}}
+{{- $pd := parsePolicyDocument $value}}
+
+resource "aws_iam_role_policy" "{{$id}}" {
+  name   = "{{$key}}" 
+  role   = aws_iam_role.{{$id}}.id
+  policy = data.aws_iam_policy_document.{{$id}}_role_policy.json
+}
+
+data "aws_iam_policy_document" "{{$id}}_role_policy" {
+  {{- range $pd.Statement}}
+
+  statement {
+    {{- $actions := typeStringSlice .Action}}
+    {{- $resources := typeStringSlice .Resource}}
+    actions = [
+      {{- range $actions}}
+      "{{.}}",
+      {{- end}}
+    ]
+    resources = [
+      {{- range $resources}}
+      "{{.}}",
+      {{- end}}
+    ]
+  }
+  {{- end}}
+}
+{{- end}}
+{{- end}}
+{{- $apd := parsePolicyDocument .AssumeRolePolicyDocument}}
+
+data "aws_iam_policy_document" "{{tfName .LogicalID}}_assume_policy" {
+  {{- range $apd.Statement}}
+  statement {
+    actions = [
+      "{{.Action}}"
+    ]
+    principals {
+    {{- if .Principal.Service}}
+      type        = "Service"
+      identifiers = [
+        "{{.Principal.Service}}"
+      ]
+    {{- end}}
+    }
+    {{- if .Condition}}
+    {{- if .Condition.StringEquals}}
+    {{- range $key, $value := .Condition.StringEquals}}
+    condition {
+      test     = "StringEquals" 
+      variable = "{{$key}}"
+      values = [
+        "{{$value}}"
+      ]
+    }
+    {{- end}}
+    {{- end}}
+    {{- end}}
+  }
+  {{- end}}
+}
+{{- end}}

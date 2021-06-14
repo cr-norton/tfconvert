@@ -1,0 +1,49 @@
+{{- $stackName := .Name}}
+{{- $serviceName := .ServiceName}}
+{{- $additionalTags := .AdditionalTags}}
+{{- range .DynamoTables}}
+resource "aws_dynamodb_table" "{{tfName .LogicalID}}" {
+  name           = "{{.TableName}}"
+  read_capacity  = {{.ProvisionedThroughput.ReadCapacityUnits}}
+  write_capacity = {{.ProvisionedThroughput.WriteCapacityUnits}}
+  hash_key       = "{{keySchemaElement .KeySchema "HASH"}}"
+  {{- $rkey := keySchemaElement .KeySchema "RANGE"}}
+  {{- if $rkey}}
+  range_key    = "{{$rkey}}"
+
+  {{- end}}
+  {{- range .AttributeDefinitions}}
+  
+  attribute {
+    name = "{{.AttributeName}}"
+    type = "{{.AttributeType}}"
+  }
+  {{- end}}
+
+  {{- range .GlobalSecondaryIndexes}}
+
+  global_secondary_index {
+    name               = "{{.IndexName}}"
+    hash_key           = "{{keySchemaElement .KeySchema "HASH"}}"
+    {{- $rkey := keySchemaElement .KeySchema "RANGE"}}
+    {{- if $rkey}}
+    range_key          = "{{$rkey}}"
+    {{- end}}
+    write_capacity     = {{.ProvisionedThroughput.WriteCapacityUnits}}
+    read_capacity      = {{.ProvisionedThroughput.ReadCapacityUnits}}
+    projection_type    = "{{.Projection.ProjectionType}}"
+    {{- if eq .Projection.ProjectionType "INCLUDE"}}
+    non_key_attributes = [.Projection.NonKeyAttributes] // TODO test this
+    {{- end}}
+  }
+  {{- end}}
+
+  tags = {
+    Service          = "{{$serviceName}}"
+    {{- range $key, $value := $additionalTags}}
+    {{$key}}        = "{{$value}}"
+    {{- end}}
+  }
+}
+
+{{end}}

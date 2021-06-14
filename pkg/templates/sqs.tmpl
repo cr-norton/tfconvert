@@ -1,0 +1,30 @@
+{{- $stack := .}}
+{{- $stackName := .Name}}
+{{- $serviceName := .ServiceName}}
+{{- $additionalTags := .AdditionalTags}}
+{{- range .Queues}}
+resource "aws_sqs_queue" "{{tfName .LogicalID}}" {
+  name = "{{.QueueName}}"
+  {{- $rdp := .RedrivePolicy}}
+  {{- if $rdp}}
+
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = {{lookup $stack $rdp.DeadLetterTargetArn}}
+    maxReceiveCount     = {{$rdp.MaxReceiveCount}}
+  })
+  {{- end}}
+  {{- if .Policy}}
+
+    policy = <<EOT
+      {{formatJSON .Policy}}
+    EOT
+  {{- end}}
+
+  tags = {
+    Service          = "{{$stackName}}"
+    {{- range $key, $value := $additionalTags}}
+    {{$key}}        = "{{$value}}"
+    {{- end}}
+  }
+}
+{{end}}
